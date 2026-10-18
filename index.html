@@ -4,12 +4,83 @@
 <meta http-equiv="Content-Type" content="text/html; charset=windows-1252">
 <title>EMRE DAYANGAC</title>
 <link rel="shortcut icon" href="favicon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Antonio:wght@400;700&display=swap" rel="stylesheet">
 <style>
-body {top: 0; left: 0; width: 99%; height: 97%;
-position: absolute; display: table}
-p {display: table-cell; vertical-align: middle; text-align: center}
+body {margin: 0; height: 100vh; display: flex; flex-direction: column}
+#title {text-align: center; padding-top: 2em}
+#halves {flex: 1; min-height: 0; display: flex}
+#left, #right {flex: 1; min-width: 0; box-sizing: border-box; padding: 2em}
+body::before {content: ""; position: fixed; top: 0; bottom: 0; left: 50%; border-left: 2px solid black; margin-left: -1px}
+#right {display: flex; align-items: center; justify-content: center; text-align: center}
+#right img {max-width: 100%}
+body {background: white}
+#title {mix-blend-mode: difference; color: white}
+body::after {content: ""; position: fixed; top: 0; bottom: 0; left: 0; right: 50%; z-index: -1; background: black}
+.lcars {height: 100%; display: grid; grid-template-columns: 130px minmax(0, 1fr); grid-template-rows: 70px minmax(0, 1fr) 70px;
+column-gap: 8px; font-family: 'Antonio', sans-serif; text-transform: uppercase; color: #ff9966}
+.elbow {background: #ff9966; position: relative}
+.elbow.top {border-top-left-radius: 50px}
+.elbow.bottom {background: #9999ff; border-bottom-left-radius: 50px}
+.cap {position: relative; display: flex; gap: 8px; height: 24px; margin-left: -8px}
+.cap.bottom {align-self: end}
+.cap .fill {flex: 1; min-width: 20px; background: #ff9966}
+.cap.bottom .fill {background: #9999ff}
+.cap .end {width: clamp(24px, 3vw, 40px); background: #cc99cc; border-radius: 0 12px 12px 0}
+.cap .label {font-size: clamp(12px, 1.8vw, 30px); line-height: 24px; font-weight: 700; color: #ff9966;
+white-space: nowrap; overflow-x: clip; min-width: 0}
+.cap.top::after, .cap.bottom::after {content: ""; position: absolute; left: 0; width: 30px; height: 30px}
+.cap.top::after {top: 24px; background: radial-gradient(circle at 100% 100%, transparent 29px, #ff9966 30px)}
+.cap.bottom::after {bottom: 24px; background: radial-gradient(circle at 100% 0, transparent 29px, #9999ff 30px)}
+.side {display: flex; flex-direction: column; gap: 8px; padding: 8px 0}
+.side > * {height: 56px; color: black; font-size: 15px; text-align: right; padding: 0 8px 4px;
+display: flex; align-items: flex-end; justify-content: flex-end; box-sizing: border-box}
+.side .grow {flex: 1}
+.side a {cursor: pointer; text-decoration: none}
+.side a:hover, .side a.active {filter: brightness(1.25)}
+.side a.active {box-shadow: inset 6px 0 0 white}
+.side .big {height: 96px; font-size: 40px; font-weight: 700; align-items: center; justify-content: center; padding: 0}
+.screen {padding: 36px 20px 0 30px; overflow-y: auto; color: #cc99cc; font-size: clamp(16px, 1.55vw, 22px); line-height: 1.6; letter-spacing: 0.05em}
+.screen h2 {margin: 0 0 0.6em; font-size: clamp(30px, 3.2vw, 46px); line-height: 1.1; color: #ff9966}
+.screen b {color: #ffcc99; font-weight: 400}
+.screen ol, .screen ul {padding-left: 1.2em; margin: 0}
+.screen li {margin-bottom: 0.5em}
+.screen li ul {margin-top: 0.3em; list-style: circle}
+.screen a {color: #9999ff}
+.panel {display: none}
+.panel.active {display: block}
+#halves {position: relative}
+#halves > div {filter: blur(10px); transition: filter 0.6s}
+#halves > div.revealed {filter: none}
+.gate {position: absolute; top: 0; bottom: 0; width: 50%; display: flex; align-items: center; justify-content: center;
+border: 0; background: none; cursor: pointer; padding: 0; z-index: 1}
+.gate.left {left: 0}
+.gate.right {left: 50%}
+.gate span {padding: 0.5em 1.4em; opacity: 0; letter-spacing: 0.4em;
+transition: opacity 0.35s, letter-spacing 0.45s, clip-path 0.45s, transform 0.45s}
+.gate.left span {clip-path: inset(0 100% 0 0 round 30px)}
+.gate.right span {transform: translateY(12px)}
+.gate:hover span, .gate:focus-visible span {opacity: 1; letter-spacing: 0.02em}
+.gate.left:hover span, .gate.left:focus-visible span {clip-path: inset(0 0 0 0 round 30px)}
+.gate.right:hover span, .gate.right:focus-visible span {transform: none}
+.gate.left span {font-family: 'Antonio', sans-serif; font-weight: 700; font-size: 34px; text-transform: uppercase;
+background: #ff9900; color: black; border-radius: 30px}
+.gate.right span {font-family: serif; font-style: italic; font-weight: bold; font-size: 30px;
+background: white; color: black; border: 2px solid black}
+.side .vote {height: 140px; background: #ff9900; font-size: 46px; font-weight: 700; line-height: 0.95;
+align-items: center; justify-content: center; text-align: center; padding: 0; animation: pulse 1.6s infinite}
+@keyframes pulse {50% {background: #ffcc66}}
+.cap.bottom .label {color: #ff9900}
+.video {width: 100%; max-width: 420px; aspect-ratio: 16 / 9; border: 3px solid #9999ff; border-radius: 0 20px 20px 0;
+display: flex; align-items: center; justify-content: center; color: #9999ff; margin-bottom: 0.8em}
+#idle {color: #ff9966}
+.side .motto {container-type: size; align-items: center; justify-content: center; padding: 0; overflow: hidden}
+.side .motto span {writing-mode: vertical-rl; transform: rotate(180deg); white-space: nowrap; font-weight: 700;
+font-size: min(44px, 9cqh, 50cqw)}
+@media (prefers-reduced-motion: reduce) {.side .vote {animation: none} .gate span {transition: none}}
 #timezone * {text-decoration: none;}
 </style>
+<script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js"></script>
 <script type="text/javascript">
 // declare time zone formatting
 let options = {
@@ -25,12 +96,80 @@ setInterval(
     document.querySelector("#time").innerText = formatter.format(new Date());
   }
 , 1000)
+// switch the LCARS panel from the sidebar
+function showPanel() {
+  let id = location.hash.slice(1) || "idle";
+  if (!document.querySelector(".panel#" + CSS.escape(id))) id = "idle";
+  document.querySelectorAll(".panel").forEach(p => p.classList.toggle("active", p.id == id));
+  document.querySelectorAll(".side a").forEach(a => a.classList.toggle("active", a.hash == "#" + id));
+}
+window.addEventListener("hashchange", showPanel);
+window.addEventListener("DOMContentLoaded", () => {
+  showPanel();
+  // each blurred side opens with a click and a burst of confetti
+  document.querySelectorAll(".gate").forEach(gate => gate.addEventListener("click", e => {
+    confetti({
+      particleCount: 160, spread: 90,
+      origin: {x: e.clientX / innerWidth, y: e.clientY / innerHeight},
+      colors: gate.dataset.colors ? gate.dataset.colors.split(",") : undefined,
+      disableForReducedMotion: true
+    });
+    document.getElementById(gate.dataset.side).classList.add("revealed");
+    gate.remove();
+  }));
+});
 </script>
 </head>
 <body>
+<div id="title"><font size="7"><i><b>EMRE DAYANGAC</b></i></font></div>
+<div id="halves">
+<div id="left">
+<div class="lcars">
+<div class="elbow top"></div>
+<div class="cap top"><div class="fill"></div><span class="label">CompSoc First Year Rep</span><div class="end"></div></div>
+<div class="side">
+<a href="#manifesto" style="background:#ff9966">Manifesto</a>
+<a href="#contact" class="big" style="background:#ffcc99">Contact</a>
+<a href="#credentials" style="background:#9999ff">Credentials</a>
+<div class="grow motto" style="background:#cc6666"><span>Live long and prosper</span></div>
+<div class="vote">Vote<br>Emre</div>
+</div>
+<div class="screen">
+<div class="panel" id="idle">
+<h2>Awaiting input</h2>
+Select a function
+</div>
+<div class="panel" id="manifesto">
+<h2>Manifesto</h2>
+<ul>
+<li></li>
+</ul>
+</div>
+<div class="panel" id="contact">
+<h2>Contact</h2>
+<div class="video">Instagram &middot; coming soon</div>
+<div class="video">Video &middot; coming soon</div>
+</div>
+<div class="panel" id="credentials">
+<h2>Credentials</h2>
+<ul>
+<li><b>Organised the Istanbul coding summit</b> for the past 3 years &middot; attendance grew from 120 to 800+</li>
+<li><b>Co-organised a summit in Athens</b> &middot; coordinated schools across 3 countries to teach 700+ kids</li>
+<li><b>Created 2 introductory kit sets</b> &middot; reached 2,100+ kids in all 81 provinces of T&uuml;rkiye</li>
+<li><b>Robotics team</b> &middot; won the Judges' and FIRST Impact Awards</li>
+<li><b>Researcher</b> at Hisar Fablab &middot; 6 published works
+<ul><li>Student research lead</li></ul></li>
+</ul>
+</div>
+</div>
+<div class="elbow bottom"></div>
+<div class="cap bottom"><div class="fill"></div><span class="label">Vote Emre</span><div class="end"></div></div>
+</div>
+</div>
+<button class="gate left" data-side="left" data-colors="#ff9900,#ff9966,#cc99cc,#9999ff,#cc6666,#ffcc99"><span>Click for CompSoc campaign</span></button>
+<button class="gate right" data-side="right"><span>Click for personal site</span></button>
+<div id="right">
 <p>
-<font size="7"><i><b>EMRE DAYANGAC</b></i></font> <br>
-<br>
 <img src="https://live.staticflickr.com/2063/2169510548_f7e48be7c3_b.jpg" style="width:560px;"><br>
 <br>
 <span id=timezone>
@@ -44,8 +183,8 @@ id="time">0:00 PM</span> EET<a href="https://24timezones.com/time-zone/trt"></a>
 <a href="blog/index.html">blog</a> //
 <a href="portfolio.html">portfolio</a> //
 <a href="contact.html">contact</a>
-<br>
-<br>
 </p>
+</div>
+</div>
 </body>
 </html>
