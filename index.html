@@ -71,8 +71,10 @@ background: white; color: black; border: 2px solid black}
 align-items: center; justify-content: center; text-align: center; padding: 0; animation: pulse 1.6s infinite}
 @keyframes pulse {50% {background: #ffcc66}}
 .cap.bottom .label {color: #ff9900}
-.video {width: 100%; max-width: 420px; aspect-ratio: 16 / 9; border: 3px solid #9999ff; border-radius: 0 20px 20px 0;
+.video {width: 100%; max-width: 420px; box-sizing: border-box; aspect-ratio: 16 / 9; border: 3px solid #9999ff; border-radius: 0 20px 20px 0;
 display: flex; align-items: center; justify-content: center; color: #9999ff; margin-bottom: 0.8em}
+.screen .video.link {aspect-ratio: auto; height: 3.4em; box-sizing: border-box; text-decoration: none; color: #ffcc99; border-color: #ff9966}
+.screen .video.link:hover {background: #ff9966; color: black}
 #idle {color: #ff9966}
 .side .motto {container-type: size; align-items: center; justify-content: center; padding: 0; overflow: hidden}
 .side .motto span {writing-mode: vertical-rl; transform: rotate(180deg); white-space: nowrap; font-weight: 700;
@@ -147,7 +149,8 @@ Select a function
 </div>
 <div class="panel" id="contact">
 <h2>Contact</h2>
-<div class="video">Instagram &middot; coming soon</div>
+<a class="video link" href="https://www.instagram.com/emre4y1rep/" target="_blank" rel="noopener">Instagram &middot; @emre4y1rep</a>
+<a class="video link" href="https://forms.cloud.microsoft/Pages/ResponsePage.aspx?id=sAafLmkWiUWHiRCgaTTcYe6R2wSKjbtFq2Jk276Ljy5UMTdKQ1JBTjNCVjE3OUhXWkk3VU03SFhTWS4u" target="_blank" rel="noopener">Take the survey</a>
 <div class="video">Video &middot; coming soon</div>
 </div>
 <div class="panel" id="credentials">
