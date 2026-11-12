@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Building a Neural Network Accelerator</title>
+<style>
+body {
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+    line-height: 1.6;
+    color: #222;
+    background: #fff;
+    margin: 0;
+    padding: 0 16px;
+}
+main { max-width: 720px; margin: 40px auto 80px; }
+h1 { font-size: 28px; font-weight: 600; margin: 0 0 4px; }
+h2 { font-size: 20px; font-weight: 600; margin: 36px 0 8px; }
+h3 { font-size: 17px; font-weight: 600; margin: 24px 0 6px; }
+.date { color: #777; margin: 0 0 28px; }
+a { color: #0366d6; text-decoration: none; }
+a:hover { text-decoration: underline; }
+pre {
+    background: #f6f8fa;
+    border: 1px solid #eee;
+    border-radius: 4px;
+    padding: 12px 14px;
+    overflow-x: auto;
+    font-size: 13px;
+    line-height: 1.45;
+}
+code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+p code, li code { background: #f6f8fa; padding: 1px 4px; border-radius: 3px; font-size: 14px; }
+.back { margin-top: 48px; }
+</style>
+</head>
+<body>
+<main>
+<h1>Building a Neural Network Accelerator</h1>
+<p class="date">November 12, 2026</p>
+
+<p>This is a small neural network accelerator built around a systolic array, written in Chisel. A host sends it a trained network and some inputs over a serial cable, the hardware runs every layer, and the host reads the answers back. Right now it classifies handwritten digits end to end in simulation. If you're interested in how ML accelerators like the TPU work, or just want to see one small enough to read in an afternoon, this post is for you.</p>
+
+<h2>What Can It Do</h2>
+
+<p>It runs fully connected networks (MLPs) with int8 weights and activations and int32 sums. The demo network is a small 64-32-10 classifier for 8x8 handwritten digits. It gets 96.7% on the held-out set, the same as the float version it was quantized from. In simulation, 32 test images go through the whole thing: bytes over the UART, both layers on a 4x4 array, results back over the UART. Every output matches a Python model of the hardware bit for bit, and all 32 digits come out right.</p>
+
+<p>The array does 16 multiply-adds per cycle, and with a batch of 32 images it keeps about 96% of them busy. The whole batch takes about 5000 cycles, so around 50 microseconds at 100 MHz. That sounds fast until you look at the serial link, which I'll get to at the end. It has only run in simulation so far, not on an FPGA. Synthesis says it should fit on an ECP5 (about 5200 LUTs and 17 multipliers), which is the next step.</p>
+
+<h2>How It Works</h2>
+
+<p>The main parts are the:</p>
+<ul>
+<li>Processing element</li>
+<li>Systolic array</li>
+<li>Engine</li>
+<li>Host link</li>
+</ul>
+
+<h3>Processing Element</h3>
+
+<p>A systolic array is a grid of tiny identical cells that pass data to their neighbours every clock cycle. Each cell, a PE, does one multiply-add. The question is what stays put in each PE and what moves. In my design the <b>weight</b> stays put: each PE holds one weight, activations flow in from the left, and partial sums flow down from above. This is called weight-stationary, and it's the same idea as Google's TPU.</p>
+
+<p>The trick that makes it fast is that each PE has two weight registers. While the PE computes with the active weight, the next weight loads into a shadow register behind it. A swap flag travels along with the first activation of the next tile, so each PE switches weights exactly when the new data reaches it, and the array never has to stop. This is pretty much the whole PE:</p>
+
+<pre><code>// double buffered, shadow loads while active computes
+val shadow = RegInit(0.S(dataWidth.W))
+val active = RegInit(0.S(dataWidth.W))
+when(io.shift) { shadow := io.shiftIn }
+when(io.swapIn) { active := shadow }
+
+val weight = Mux(io.swapIn, shadow, active)
+
+io.shiftOut := shadow
+io.actOut   := RegNext(io.actIn, 0.S)
+io.swapOut  := RegNext(io.swapIn, false.B)
+io.psumOut  := RegNext(io.psumIn + weight * io.actIn, 0.S)</code></pre>
+
+<h3>Systolic Array</h3>
+
+<p>Put n by n of these together and you get y = x W for a whole input vector every cycle. The one annoying part is timing: row r's activation has to arrive exactly when the partial sum from row r - 1 does, so each row is delayed by one more cycle than the row above it. The outputs get the opposite delay so the whole result vector comes out on the same cycle, 2n - 1 cycles after it went in.</p>
+
+<h3>Engine</h3>
+
+<p>A real layer is way bigger than 4x4, so the engine cuts it into 4x4 tiles. For each tile it loads the weights into the shadow registers, streams every input in the batch through the array, and adds the results into an accumulator memory. On the last tile it also adds the bias, shifts the result back down to int8 range, and applies ReLU. Hidden layer results go straight back into the activation memory in exactly the layout the next layer reads, so a layer sequencer can run up to 16 layers back to back without the host doing anything.</p>
+
+<pre><code>when(streaming) {
+  issueValid := true.B
+  io.aAddr   := actTileBase + row
+  when(row === 0.U) {
+    issueSwap  := true.B
+    shadowFull := false.B
+    sinceSwap  := 0.U
+  }</code></pre>
+
+<p>The first row of every tile carries the swap. Then the loader is allowed to start filling the shadow registers again, but only once the swap has made it to the last PE, 2n - 2 cycles later. There's a test that starts the load one cycle earlier than that and checks that the results come out wrong, which is a nice way to know the limit is real.</p>
+
+<h3>Host Link</h3>
+
+<p>The board talks to the computer over a UART. A small command parser reads bytes and turns them into memory writes: weights, biases, inputs, layer configs, then "run" and "read results". A Python script on the other end trains the network with numpy, quantizes it to int8, and builds the byte stream.</p>
+
+<h2>What's Next?</h2>
+
+<p>The funny part is that the array isn't the bottleneck at all. Sending the network and the 32 images over a 115200 baud UART takes about half a second, and the actual math takes 50 microseconds. So the first easy wins are on the I/O side: keep the weights on the chip instead of resending them with every batch, send back only each image's predicted digit instead of all the raw outputs, and use a faster link. After that, I want to make small batches faster (right now loading weights dominates when the batch is under about 12 images), and actually get it running on an FPGA.</p>
+
+<p>The code is on GitHub at <a href="https://github.com/dayangac/wsa">dayangac/wsa</a>.</p>
+
+<p>Thanks for reading, and if you have any questions, <a href="../contact.html">contact me</a>!</p>
+
+<p class="back"><a href="index.html">back to blog</a> &middot; <a href="../index.html">home</a></p>
+</main>
+</body>
+</html>
