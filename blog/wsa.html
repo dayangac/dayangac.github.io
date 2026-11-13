@@ -195,6 +195,8 @@ io.psumOut  := RegNext(io.psumIn + weight * io.actIn, 0.S)</code></pre>
 <h2>What's Next?</h2>
 
 <p>The funny part is that the array isn't the bottleneck at all. Sending the network and the 32 images over a 115200 baud UART takes about half a second, and the actual math takes 50 microseconds. So the first easy wins are on the I/O side: keep the weights on the chip instead of resending them with every batch, send back only each image's predicted digit instead of all the raw outputs, and use a faster link. After that, I want to make small batches faster (right now loading weights dominates when the batch is under about 12 images), and actually get it running on an FPGA.</p>
+<p>That last one needs a real board, so the next step is getting an FPGA of my own. Everything so far has been simulation and synthesis reports, and I want to see this thing run on hardware, where timing, clocks and the memory ports stop being theoretical.</p>
+<p>The bigger goal is to keep working on hardware for machine learning: TPU-style accelerators, and further out, chiplets and the packaging and interconnect that tie several dies into one system. This project is a small first step in that direction, and I want to build on it.</p>
 
 <figure style="margin: 28px 0;">
 <svg viewBox="0 0 600 150" width="100%" role="img" aria-label="Bar chart: the serial link takes 0.54 seconds per batch, the computation 50 microseconds, too small to see at this scale" font-family="system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif">
