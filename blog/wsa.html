@@ -153,6 +153,24 @@ io.psumOut  := RegNext(io.psumIn + weight * io.actIn, 0.S)</code></pre>
 </script>
 </figure>
 
+<p>In Chisel the whole grid is one loop. Each PE gets its weight from the PE above, its input from the PE on the left, and its partial sum from above. The <code>ShiftRegister</code> calls are the delays that line everything up:</p>
+
+<pre><code>val pes = Seq.fill(n, n)(Module(new PE(dataWidth, accWidth)))
+
+for (r &lt;- 0 until n; c &lt;- 0 until n) {
+  val pe = pes(r)(c)
+  pe.io.shift   := io.shift
+  pe.io.shiftIn := (if (r == 0) io.weightIn(c) else pes(r - 1)(c).io.shiftOut)
+  pe.io.actIn   := (if (c == 0) ShiftRegister(io.actIn(r), r) else pes(r)(c - 1).io.actOut)
+  pe.io.swapIn  := (if (c == 0) ShiftRegister(io.swap, r, false.B, true.B) else pes(r)(c - 1).io.swapOut)
+  pe.io.psumIn  := (if (r == 0) 0.S else pes(r - 1)(c).io.psumOut)
+}
+
+for (c &lt;- 0 until n) {
+  io.out(c) := ShiftRegister(pes(n - 1)(c).io.psumOut, n - 1 - c)
+}
+io.outValid := ShiftRegister(io.inValid, latency, false.B, true.B)</code></pre>
+
 <h3>Engine</h3>
 
 <p>A real layer is way bigger than 4x4, so the engine cuts it into 4x4 tiles. For each tile it loads the weights into the shadow registers, streams every input in the batch through the array, and adds the results into an accumulator memory. On the last tile it also adds the bias, shifts the result back down to int8 range, and applies ReLU. Hidden layer results go straight back into the activation memory in exactly the layout the next layer reads, so a layer sequencer can run up to 16 layers back to back without the host doing anything.</p>
@@ -168,9 +186,46 @@ io.psumOut  := RegNext(io.psumIn + weight * io.actIn, 0.S)</code></pre>
 
 <p>The first row of every tile carries the swap. Then the loader is allowed to start filling the shadow registers again, but only once the swap has made it to the last PE, 2n - 2 cycles later. There's a test that starts the load one cycle earlier than that and checks that the results come out wrong, which is a nice way to know the limit is real.</p>
 
+<p>This is the post processing on the way out. Adding half before the shift rounds to the nearest value instead of always rounding down, and the sum is two bits wider than the accumulator so it can't overflow before the shift:</p>
+
+<pre><code>val maxOut = ((1 &lt;&lt; (dataWidth - 1)) - 1).S
+val minOut = (-(1 &lt;&lt; (dataWidth - 1))).S
+// rounding shift, sum is 2 bits wider so it can't wrap
+val half   = ((1.U &lt;&lt; io.shift) &gt;&gt; 1).asUInt.zext
+
+for (i &lt;- 0 until n) {
+  val sum     = io.in(i) +&amp; io.bias(i) +&amp; half
+  val shifted = sum &gt;&gt; io.shift
+  val v       = Mux(io.relu &amp;&amp; shifted &lt; 0.S, 0.S, shifted)
+  io.out(i)        := v(accWidth - 1, 0).asSInt
+  io.outClamped(i) := Mux(v &gt; maxOut, maxOut, Mux(v &lt; minOut, minOut, v))(dataWidth - 1, 0).asSInt
+}</code></pre>
+
 <h3>Host Link</h3>
 
 <p>The board talks to the computer over a UART. A small command parser reads bytes and turns them into memory writes: weights, biases, inputs, layer configs, then "run" and "read results". A Python script on the other end trains the network with numpy, quantizes it to int8, and builds the byte stream.</p>
+
+<p>The parser is a small state machine. The first byte says which command it is, and that decides how many header bytes to read next:</p>
+
+<pre><code>is(State.Idle) {
+  when(got) {
+    cmd    := byte
+    hdrIdx := 0.U
+    switch(byte) {
+      is(Cmd.WriteWeights.U, Cmd.WriteBias.U, Cmd.WriteActs.U, Cmd.ReadOut.U) {
+        hdrLen := 4.U
+        state  := State.Header
+      }
+      is(Cmd.WriteLayer.U) {
+        hdrLen := 15.U
+        state  := State.Header
+      }
+      is(Cmd.Run.U) {
+        hdrLen := 1.U
+        state  := State.Header
+      }
+    ...
+</code></pre>
 
 <h2>Stats</h2>
 
